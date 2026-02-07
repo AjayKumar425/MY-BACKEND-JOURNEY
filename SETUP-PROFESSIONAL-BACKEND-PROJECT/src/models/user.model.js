@@ -6,7 +6,7 @@ import bcrypt from "bcrypt"
 const userSchema = new Schema(
 
     {
-        userName : {
+        username : {
             type : String ,
             required : true,
             unique : true , 
@@ -66,11 +66,11 @@ const userSchema = new Schema(
 )
 
 
-userSchema.pre("save", async function (next) {
-    if(!this.isModified("password")) return next ();
+userSchema.pre("save", async function () {
+    if(!this.isModified("password")) return  ;
 
     this.password = await bcrypt.hash(this.password, 10)
-    next()
+    
 })
 
 
@@ -83,12 +83,12 @@ userSchema.methods.isPasswordCorrect = async function
 
 
 
-userSchema.method.generateAccessToken = function(){
+userSchema.methods.generateAccessToken = function(){
     return jwt.sign(
         {
             _id : this._id,
             email: this.email,
-            username : this.userName,
+            username : this.username,
             fullname: this.fullname
         },
         process.env.ACCESS_TOKEN_SECRET ,
@@ -97,7 +97,7 @@ userSchema.method.generateAccessToken = function(){
         }
     )
 }
-userSchema.method.generateRefreshToken = function(){
+userSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
         {
             _id : this._id,
@@ -112,4 +112,6 @@ userSchema.method.generateRefreshToken = function(){
 
 
 
-export const User = mongoose.model("User" , UserSchema)
+
+
+export const User = mongoose.model("User" , userSchema);

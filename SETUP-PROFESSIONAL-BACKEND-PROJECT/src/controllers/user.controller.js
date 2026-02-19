@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken"
 
 import {ApiResponse } from "../utils/ApiResponse.js"
 import { syncIndexes } from "mongoose"
+import { subscribe } from "diagnostics_channel"
 
 
 const generateAccessAndRefreshToken = async(userId) => {
@@ -287,7 +288,7 @@ const updateAccountDetails = asyncHandler(async(req , res) =>{
     if(!fullname || email){
         throw new ApiError(400 , "all fields are required")
     }
-    const user = User.findByIdAndUpdate(req.user?._id,
+    const user = await User.findByIdAndUpdate(req.user?._id,
         {
             $set : {
                 fullname ,
@@ -372,6 +373,82 @@ const updateUserCoverImage = asyncHandler(async(req , res) =>{
   
 })
 
+
+const getUserChannerlProfile = asyncHandler(async(req , res) =>{
+
+    const {username} = req.params
+    if(!username?.trim()){
+        throw new ApiError(400 , "username is missing")
+    }
+
+     const channel = await User.aggregate([
+
+        {
+            $match : {
+                username : username?.toLowerCase()
+            }
+
+        },
+        {
+            $lookup : {
+                from : "Subscription",
+                localField : "-id",
+                foreignField: "channel",
+                as : "subscriber"
+            }
+        },
+        {
+            $lookup : {
+                 from : "Subscription",
+                localField : "-id",
+                foreignField: "subcriber",
+                as : "subscribedTo"
+
+            }
+        },
+        {
+            $addFields : {
+                subscribersCuont : {
+                    $size : "$subcribers"
+                },
+                channelsSubscribedToCount : {
+                    $size : "$subscribedTo"
+                },
+                isSubscribed : {
+                    $cond : {
+                        if: {$in: [req.user?._id, "$subscribers.suubscriber"]},
+                        then: true , 
+                        else : false
+                    }
+                }
+            }
+        },
+        {
+            $project : {
+                fullname: 1,
+                username : 1 , 
+                subscribersCuont: 1,
+                channelsSubscribedToCount: 1 , 
+                isSubscribed : 1 , 
+                avatar :1 ,
+                coverImage: 1,
+                email : 1 
+            }
+        }
+     ])
+
+     if (!channel?.length) {
+        throw new ApiError(404 , "channel does not exist")
+        
+     }
+     return res
+     .status(200 )
+     .json(
+        new ApiError(200 , channel[0] , "user channel fetched successfully")
+     )
+
+})
+
 export {
     getCurrentUser,
     registerUser,
@@ -381,5 +458,6 @@ export {
     changeCurrentPassword,
     updateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannerlProfile
 }
